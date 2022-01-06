@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+</head>
+<body style="margin: 0; padding: 0;">
+<script>
+
+const ACCERELATION = 0.004;
+const ACCERELATIONCAP = 0.012;
+const owlDownwardAcc = 0.2;
+const owlFlapIncrease = 13;
+const pipeWidth = 50;
+const showPipesDebug = true;
+const pipeSpawnDelay = 500;
+const owlHalfWidth = 40;
+const owlHalfHeight = 40;
+var lastPipeSpawn = 0;
+var owlUpwardMotion = 0;
+var SCROLLSPEED = 1;
+
+
+let firstPipe;
+let lastPipe;
+class Pipe {
+    constructor(x, y, height, ctx){
+        this.x = x;
+        this.y = y;
+        this.height = height;
+        this.next = false;
+        this.ctx = ctx;
+
+        if (lastPipe !== undefined){
+            lastPipe.next = this;
+        }
+        lastPipe = this;
+        if(showPipesDebug && this.ctx){
+            this.debugRectangle = this.ctx.add.rectangle(this.x, this.y, pipeWidth, this.height, 0xffffff);
+        }    
+    }
+
+    update(){
+        this.x -= SCROLLSPEED;
+        this.debugRectangle.x = this.x;
+    }
+
+    checkCollision(){
+        let lx = this.x - pipeWidth / 2;
+        let rx = this.x + pipeWidth / 2;
+        let ty = this.y - this.height / 2;
+        let by = this.y + this.height / 2;
+        if (
+            owl.x - owlHalfWidth < rx &&
+            owl.x + owlHalfWidth > lx &&
+            owl.y - owlHalfHeight < by &&
+            owl.y + owlHalfHeight > ty
+        ){
+            gameOver();
+        }
+    }
+}
+
+let config = {
+    type: Phaser.AUTO,
+    width: screen.width,
+    height: screen.height,
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+}
+
+var game = new Phaser.Game(config);
+
+function preload () {
+    this.load.image("bg1", "bg.png");
+    this.load.image("owl", "owl.png");
+}
+
+function create () {
+    bg = this.add.tileSprite(screen.width / 2, screen.height / 2, screen.width, screen.height, "bg1");
+    owl = this.add.sprite(screen.width / 4, screen.height / 2, "owl");
+    owl.setScale(0.1);
+    owl.angle = 20;
+    this.input.keyboard.on("keydown_SPACE", owlFlap, this);
+    firstPipe = new Pipe(-100,0,0, this);
+}
+
+function update() {
+    bg.tilePositionX += SCROLLSPEED;
+    SCROLLSPEED += Math.min(ACCERELATIONCAP, SCROLLSPEED * ACCERELATION);
+    owl.y -= owlUpwardMotion;
+    owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
+
+    let curPipe = firstPipe;
+    while (curPipe.next){
+        curPipe = curPipe.next;
+        curPipe.checkCollision();
+        curPipe.update();   
+    }
+    
+    check_ground_hit();
+    generatePipes(this);
+}
+
+function owlFlap() {
+    owlUpwardMotion += owlFlapIncrease;
+}
+
+function generatePipes(ctx) {
+    if (lastPipeSpawn > 0){
+        lastPipeSpawn -= SCROLLSPEED;
+        return;
+    }
+    lastPipeSpawn = pipeSpawnDelay;
+    let gapSize = Phaser.Math.Between(250, 500);
+    let topPipeHeight = Phaser.Math.Between(screen.height / 10, screen.height / 2);
+    let bottomPipeHeight = screen.height - topPipeHeight - gapSize;
+
+    let topPipe = new Pipe(screen.width, topPipeHeight / 2, topPipeHeight, ctx);
+    let bottomPipe = new Pipe(screen.width, screen.height - (bottomPipeHeight / 2), bottomPipeHeight, ctx);
+}
+
+function check_ground_hit(){
+    if(owl.y > screen.height){
+        console.log("Game over");
+    }
+}
+
+function gameOver(){
+    console.log("Game Over");
+}
+
+</script>
+</body>
+</html>

@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
 </head>
 <body style="margin: 0; padding: 0;">
 <script>
 
+const GAMEWIDTH = window.innerWidth;
+const GAMEHEIGHT = window.innerHeight;
+const BOOKHEIGHT = 60;
+const BOOKSCALE = 0.5;
+const OWLSCALE = 0.1;
+const CALCULATEDBOOKHEIGHT = BOOKHEIGHT * BOOKSCALE;
 const ACCERELATION = 0.004;
 const ACCERELATIONCAP = 0.012;
 const owlDownwardAcc = 0.2;
@@ -29,6 +35,8 @@ class Pipe {
         this.height = height;
         this.next = false;
         this.ctx = ctx;
+        this.books = [];
+        this.startHeight = this.y - this.height / 2;
 
         if (lastPipe !== undefined){
             lastPipe.next = this;
@@ -36,12 +44,25 @@ class Pipe {
         lastPipe = this;
         if(showPipesDebug && this.ctx){
             this.debugRectangle = this.ctx.add.rectangle(this.x, this.y, pipeWidth, this.height, 0xffffff);
-        }    
+        }
+        this.createBooks(ctx);
+    }
+
+    createBooks(ctx){
+        let bookCount = Math.floor(this.height / CALCULATEDBOOKHEIGHT);
+        for(let i = 0; i < bookCount; i++){
+            let book = ctx.add.image(this.x, this.startHeight + (CALCULATEDBOOKHEIGHT / 2) + i * (CALCULATEDBOOKHEIGHT), 'book2');
+            book.setScale(BOOKSCALE);
+            this.books.push(book);
+        }
     }
 
     update(){
         this.x -= SCROLLSPEED;
         this.debugRectangle.x = this.x;
+        this.books.forEach(book => {
+            book.x = this.x;
+        });
     }
 
     checkCollision(){
@@ -62,12 +83,13 @@ class Pipe {
 
 let config = {
     type: Phaser.AUTO,
-    width: screen.width,
-    height: screen.height,
+    width: GAMEWIDTH,
+	height: GAMEHEIGHT,
+    backgroundColor: 0x00aaff,
     scene: {
         preload: preload,
         create: create,
-        update: update
+        update: update,
     }
 }
 
@@ -76,14 +98,17 @@ var game = new Phaser.Game(config);
 function preload () {
     this.load.image("bg1", "bg.png");
     this.load.image("owl", "owl.png");
+    this.load.image("book1", "b64.png");
+    this.load.image("book2", "b65.png");
 }
 
 function create () {
-    bg = this.add.tileSprite(screen.width / 2, screen.height / 2, screen.width, screen.height, "bg1");
-    owl = this.add.sprite(screen.width / 4, screen.height / 2, "owl");
-    owl.setScale(0.1);
+    bg = this.add.tileSprite(GAMEWIDTH / 2, GAMEHEIGHT - 75, GAMEWIDTH, 150, "bg1");
+    owl = this.add.sprite(GAMEWIDTH / 4, GAMEHEIGHT / 2, "owl");
+    owl.setScale(OWLSCALE);
     owl.angle = 20;
     this.input.keyboard.on("keydown_SPACE", owlFlap, this);
+    this.input.on('pointerdown', owlFlap, this);
     firstPipe = new Pipe(-100,0,0, this);
 }
 
@@ -93,37 +118,46 @@ function update() {
     owl.y -= owlUpwardMotion;
     owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
 
-    let curPipe = firstPipe;
-    while (curPipe.next){
-        curPipe = curPipe.next;
-        curPipe.checkCollision();
-        curPipe.update();   
-    }
-    
     check_ground_hit();
-    generatePipes(this);
+    managePiping(this);
 }
 
 function owlFlap() {
     owlUpwardMotion += owlFlapIncrease;
 }
 
-function generatePipes(ctx) {
+function managePiping(ctx) {
+    // Render piping
+    let curPipe = firstPipe;
+    while (curPipe.next){
+        curPipe = curPipe.next;
+        curPipe.checkCollision();
+        curPipe.update();   
+    }
+
+
     if (lastPipeSpawn > 0){
         lastPipeSpawn -= SCROLLSPEED;
-        return;
-    }
-    lastPipeSpawn = pipeSpawnDelay;
-    let gapSize = Phaser.Math.Between(250, 500);
-    let topPipeHeight = Phaser.Math.Between(screen.height / 10, screen.height / 2);
-    let bottomPipeHeight = screen.height - topPipeHeight - gapSize;
+    } else {
+        // Spawn new pipe
+        lastPipeSpawn = pipeSpawnDelay;
+        let maxBookCount = Math.floor(GAMEHEIGHT / CALCULATEDBOOKHEIGHT);
+        let minGapSize = Math.floor(owl.height * 2.5 * OWLSCALE);
+        let minGapBookCount = Math.floor(minGapSize / CALCULATEDBOOKHEIGHT);
 
-    let topPipe = new Pipe(screen.width, topPipeHeight / 2, topPipeHeight, ctx);
-    let bottomPipe = new Pipe(screen.width, screen.height - (bottomPipeHeight / 2), bottomPipeHeight, ctx);
+        let bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.5);
+        let bookBottomCount = Phaser.Math.Between(2, maxBookCount - bookTopCount - minGapBookCount);
+        let topPipeHeight = bookTopCount * CALCULATEDBOOKHEIGHT;
+        let bottomPipeHeight = bookBottomCount * CALCULATEDBOOKHEIGHT;
+        let topPipe = new Pipe(GAMEWIDTH, topPipeHeight / 2, topPipeHeight, ctx);
+        let bottomPipe = new Pipe(GAMEWIDTH, GAMEHEIGHT - (bottomPipeHeight / 2), bottomPipeHeight, ctx);
+    }
+    
+    
 }
 
 function check_ground_hit(){
-    if(owl.y > screen.height){
+    if(owl.y > GAMEHEIGHT){
         console.log("Game over");
     }
 }

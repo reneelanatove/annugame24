@@ -8,28 +8,45 @@
 
 const GAMEWIDTH = window.innerWidth;
 const GAMEHEIGHT = window.innerHeight;
-const BOOKHEIGHT = 60;
-const BOOKSCALE = 0.5;
-const OWLSCALE = 0.1;
+const FONT = "Comic Sans MS";
+const FONTSCALE = (GAMEWIDTH > GAMEHEIGHT) ? 1 : 1.5;
+const BOOKHEIGHT = 4 * 22;
+const BOOKWIDTH = 4 * 100;
+const BOOKSCALE = (GAMEWIDTH > GAMEHEIGHT) ? 0.5 : 0.85;
+const OWLSCALE = (GAMEWIDTH > GAMEHEIGHT) ? 0.1 : 0.2;
 const CALCULATEDBOOKHEIGHT = BOOKHEIGHT * BOOKSCALE;
-const ACCERELATION = 0.004;
-const ACCERELATIONCAP = 0.012;
-const owlDownwardAcc = 0.2;
-const owlFlapIncrease = 13;
-const pipeWidth = 50;
-const showPipesDebug = true;
-const pipeSpawnDelay = 500;
-const owlHalfWidth = 40;
-const owlHalfHeight = 40;
+const CALCULATEDBOOKWIDTH = BOOKWIDTH * BOOKSCALE;
+const ACCERELATION = 0.003;
+const ACCERELATIONCAP = 0.01;
+const owlDownwardAcc = 0.4;
+const owlFlapIncrease = 120 * owlDownwardAcc;
+const pipeWidth = CALCULATEDBOOKWIDTH;
+const showPipesDebug = false;
+const pipeSpawnDelay = 1000;
+const owlHalfWidth = 35 * (OWLSCALE * 10);
+const owlHalfHeight = 35 * (OWLSCALE * 10);
+const bookChoices = [];
+const owlXPos = GAMEWIDTH / 4;
+const bookVariance = 10;
 var lastPipeSpawn = 0;
 var owlUpwardMotion = 0;
-var SCROLLSPEED = 1;
+var SCROLLSPEED = 5;
+var lastPipeTopBookCount;
+var score = 0;
+var scoreText;
 
+
+function registerBook(ctx, bookFileName){
+    let cnt = bookChoices.length;
+    ctx.load.image("book" + cnt, bookFileName);
+    bookChoices.push("book" + cnt);
+}
 
 let firstPipe;
 let lastPipe;
 class Pipe {
-    constructor(x, y, height, ctx){
+    constructor(point, x, y, height, ctx){
+        this.point = point; // if true, this pipe gives a point when passed.
         this.x = x;
         this.y = y;
         this.height = height;
@@ -38,20 +55,25 @@ class Pipe {
         this.books = [];
         this.startHeight = this.y - this.height / 2;
 
+        if (firstPipe === undefined){
+            firstPipe = this;
+        }
         if (lastPipe !== undefined){
             lastPipe.next = this;
         }
         lastPipe = this;
+        this.createBooks(ctx);
         if(showPipesDebug && this.ctx){
             this.debugRectangle = this.ctx.add.rectangle(this.x, this.y, pipeWidth, this.height, 0xffffff);
         }
-        this.createBooks(ctx);
     }
 
     createBooks(ctx){
         let bookCount = Math.floor(this.height / CALCULATEDBOOKHEIGHT);
         for(let i = 0; i < bookCount; i++){
-            let book = ctx.add.image(this.x, this.startHeight + (CALCULATEDBOOKHEIGHT / 2) + i * (CALCULATEDBOOKHEIGHT), 'book2');
+            let randomBookOffset = Phaser.Math.Between(-bookVariance, bookVariance);
+            let randomBookString = bookChoices[Math.floor(Math.random()*bookChoices.length)];
+            let book = ctx.add.image(this.x + randomBookOffset, this.startHeight + (CALCULATEDBOOKHEIGHT / 2) + i * (CALCULATEDBOOKHEIGHT), randomBookString);
             book.setScale(BOOKSCALE);
             this.books.push(book);
         }
@@ -59,10 +81,27 @@ class Pipe {
 
     update(){
         this.x -= SCROLLSPEED;
-        this.debugRectangle.x = this.x;
+        if (showPipesDebug) this.debugRectangle.x = this.x;
+        // Moves books to the left
         this.books.forEach(book => {
-            book.x = this.x;
+            book.x -= SCROLLSPEED;
         });
+
+        // Check if pipe is past owl
+        if (this.point && this.x < owlXPos - owlHalfWidth){
+            score++;
+            this.point = false;
+        }
+
+        // Check and destroy pipe if off screen
+        if (this.next && this === firstPipe && this.x + pipeWidth < 0){
+            firstPipe = this.next;
+            for(let i = 0; i < this.books.length; i++){
+                let book = this.books[i];
+                book.destroy();
+            }
+        }
+        
     }
 
     checkCollision(){
@@ -98,18 +137,25 @@ var game = new Phaser.Game(config);
 function preload () {
     this.load.image("bg1", "bg.png");
     this.load.image("owl", "owl.png");
-    this.load.image("book1", "b64.png");
-    this.load.image("book2", "b65.png");
+    registerBook(this, "b61.png");
+    registerBook(this, "b62.png");
+    registerBook(this, "b63.png");
+    registerBook(this, "b64.png");
 }
 
 function create () {
     bg = this.add.tileSprite(GAMEWIDTH / 2, GAMEHEIGHT - 75, GAMEWIDTH, 150, "bg1");
-    owl = this.add.sprite(GAMEWIDTH / 4, GAMEHEIGHT / 2, "owl");
+    owl = this.add.sprite(owlXPos, GAMEHEIGHT / 2, "owl");
     owl.setScale(OWLSCALE);
     owl.angle = 20;
-    this.input.keyboard.on("keydown_SPACE", owlFlap, this);
+    this.input.keyboard.on("keydown", owlFlap, this);
     this.input.on('pointerdown', owlFlap, this);
-    firstPipe = new Pipe(-100,0,0, this);
+    
+    let fontSize = FONTSCALE * 100;
+    let textStyle = {font: fontSize + "px " + FONT, fill: "#ffffff", align: "center", stroke: "#000000", strokeThickness: 5};
+    scoreText = this.add.text(GAMEWIDTH / 2, 20, score, textStyle);
+    scoreText.setDepth(1);
+
 }
 
 function update() {
@@ -117,9 +163,20 @@ function update() {
     SCROLLSPEED += Math.min(ACCERELATIONCAP, SCROLLSPEED * ACCERELATION);
     owl.y -= owlUpwardMotion;
     owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
+    scoreText.setText(score);
 
-    check_ground_hit();
+    checkCollisionsUpdatePipes();
     managePiping(this);
+}
+
+function checkCollisionsUpdatePipes(){
+    check_ground_hit();
+    let curPipe = firstPipe;
+    while (curPipe){
+        curPipe.checkCollision();
+        curPipe.update();
+        curPipe = curPipe.next;   
+    }
 }
 
 function owlFlap() {
@@ -127,15 +184,6 @@ function owlFlap() {
 }
 
 function managePiping(ctx) {
-    // Render piping
-    let curPipe = firstPipe;
-    while (curPipe.next){
-        curPipe = curPipe.next;
-        curPipe.checkCollision();
-        curPipe.update();   
-    }
-
-
     if (lastPipeSpawn > 0){
         lastPipeSpawn -= SCROLLSPEED;
     } else {
@@ -143,14 +191,23 @@ function managePiping(ctx) {
         lastPipeSpawn = pipeSpawnDelay;
         let maxBookCount = Math.floor(GAMEHEIGHT / CALCULATEDBOOKHEIGHT);
         let minGapSize = Math.floor(owl.height * 2.5 * OWLSCALE);
+        let maxGapSize = Math.floor(owl.height * 6 * OWLSCALE);
         let minGapBookCount = Math.floor(minGapSize / CALCULATEDBOOKHEIGHT);
+        let maxGapBookCount = Math.floor(maxGapSize / CALCULATEDBOOKHEIGHT);
 
-        let bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.5);
-        let bookBottomCount = Phaser.Math.Between(2, maxBookCount - bookTopCount - minGapBookCount);
+        let bookTopCount;
+        if (lastPipeTopBookCount) {
+            bookTopCount = Phaser.Math.Between(Math.max(2, lastPipeTopBookCount - 5), Math.min(maxBookCount / 1.5, lastPipeTopBookCount + 5));
+        } else {
+            bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.5);
+            lastPipeTopBookCount = bookTopCount;
+        }
+
+        let bookBottomCount = Phaser.Math.Between(Math.max(3, maxBookCount - bookTopCount - maxGapBookCount), maxBookCount - bookTopCount - minGapBookCount);
         let topPipeHeight = bookTopCount * CALCULATEDBOOKHEIGHT;
         let bottomPipeHeight = bookBottomCount * CALCULATEDBOOKHEIGHT;
-        let topPipe = new Pipe(GAMEWIDTH, topPipeHeight / 2, topPipeHeight, ctx);
-        let bottomPipe = new Pipe(GAMEWIDTH, GAMEHEIGHT - (bottomPipeHeight / 2), bottomPipeHeight, ctx);
+        let topPipe = new Pipe(true, GAMEWIDTH + pipeWidth + bookVariance, topPipeHeight / 2, topPipeHeight, ctx);
+        let bottomPipe = new Pipe(false, GAMEWIDTH + pipeWidth + bookVariance, GAMEHEIGHT - (bottomPipeHeight / 2), bottomPipeHeight, ctx);
     }
     
     
@@ -158,12 +215,12 @@ function managePiping(ctx) {
 
 function check_ground_hit(){
     if(owl.y > GAMEHEIGHT){
-        console.log("Game over");
+        gameOver();
     }
 }
 
 function gameOver(){
-    console.log("Game Over");
+    alert("Game Over");
 }
 
 </script>

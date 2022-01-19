@@ -23,8 +23,8 @@ const owlFlapIncrease = 120 * owlDownwardAcc;
 const pipeWidth = CALCULATEDBOOKWIDTH;
 const showPipesDebug = false;
 const pipeSpawnDelay = 1000;
-const owlHalfWidth = 35 * (OWLSCALE * 10);
-const owlHalfHeight = 35 * (OWLSCALE * 10);
+const owlHalfWidth = 38 * (OWLSCALE * 10);
+const owlHalfHeight = 38 * (OWLSCALE * 10);
 const bookChoices = [];
 const owlXPos = GAMEWIDTH / 4;
 const bookVariance = 10;
@@ -190,16 +190,17 @@ function managePiping(ctx) {
         // Spawn new pipe
         lastPipeSpawn = pipeSpawnDelay;
         let maxBookCount = Math.floor(GAMEHEIGHT / CALCULATEDBOOKHEIGHT);
-        let minGapSize = Math.floor(owl.height * 2.5 * OWLSCALE);
-        let maxGapSize = Math.floor(owl.height * 6 * OWLSCALE);
-        let minGapBookCount = Math.floor(minGapSize / CALCULATEDBOOKHEIGHT);
-        let maxGapBookCount = Math.floor(maxGapSize / CALCULATEDBOOKHEIGHT);
+        let minGapSize = Math.floor(owlHalfHeight * 2 * 3.2);
+        let maxGapSize = Math.floor(owlHalfHeight * 2 * 7);
+        let minGapBookCount = Math.floor(minGapSize / CALCULATEDBOOKHEIGHT) + 1;
+        let maxGapBookCount = Math.floor(maxGapSize / CALCULATEDBOOKHEIGHT) + 1;
+        let maxVariance = maxBookCount / 4;
 
         let bookTopCount;
         if (lastPipeTopBookCount) {
-            bookTopCount = Phaser.Math.Between(Math.max(2, lastPipeTopBookCount - 5), Math.min(maxBookCount / 1.5, lastPipeTopBookCount + 5));
+            bookTopCount = Phaser.Math.Between(Math.max(2, lastPipeTopBookCount - maxVariance), Math.min(maxBookCount / 2, lastPipeTopBookCount + maxVariance));
         } else {
-            bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.5);
+            bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.6);
             lastPipeTopBookCount = bookTopCount;
         }
 

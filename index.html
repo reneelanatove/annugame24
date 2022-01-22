@@ -6,9 +6,10 @@
 <body style="margin: 0; padding: 0;">
 <script>
 
+const touchDevice = (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 const GAMEWIDTH = window.innerWidth;
 const GAMEHEIGHT = window.innerHeight;
-const FONT = "Comic Sans MS";
+const FONT = "Arial";
 const FONTSCALE = (GAMEWIDTH > GAMEHEIGHT) ? 1 : 1.5;
 const BOOKHEIGHT = 4 * 22;
 const BOOKWIDTH = 4 * 100;
@@ -34,6 +35,11 @@ var SCROLLSPEED = 5;
 var lastPipeTopBookCount;
 var score = 0;
 var scoreText;
+var GAMESTATE = "UI";
+var GAMEENDED = false;
+let curUI;
+let startUI;
+let endUI;
 
 
 function registerBook(ctx, bookFileName){
@@ -120,6 +126,135 @@ class Pipe {
     }
 }
 
+class StartUI {
+    constructor(ctx){
+        this.ctx = ctx;
+    }
+
+    create(){
+        const startText = touchDevice ? "Tap to start" : "Press any key to start";
+        this.titletext = this.ctx.add.text(GAMEWIDTH / 2, GAMEHEIGHT / 2.3, "BookBird!", {
+            font: 8 * FONTSCALE + "em " + FONT,
+            fill: "#ffffff",
+            align: "center",
+            stroke: "#000000", 
+            strokeThickness: 5
+        });
+        this.titletext.setOrigin(0.5, 0.5);
+        this.startText = this.ctx.add.text(GAMEWIDTH / 2, GAMEHEIGHT / 2.3 + 70 * FONTSCALE, startText, {
+            font: 5 * FONTSCALE + "em " + FONT,
+            fill: "#ffffff",
+            align: "center",
+            stroke: "#000000", 
+            strokeThickness: 5
+        });
+        this.startText.setOrigin(0.5, 0.5);
+    }
+
+    update(){
+    }
+
+    handleKeydown(){    
+        // let fontSize = FONTSCALE * 100;
+        let textStyle = {font:  12 * FONTSCALE + "em " + FONT, fill: "#ffffff", align: "center", stroke: "#000000", strokeThickness: 5};
+        scoreText = this.ctx.add.text(GAMEWIDTH / 2, 20, score, textStyle);
+        scoreText.setDepth(1);
+        GAMESTATE = "PLAY";
+        this.startText.destroy();
+        this.titletext.destroy();
+    }
+}
+
+
+class EndUI {
+    constructor(ctx){
+        this.ctx = ctx;
+        this.overlayAlpha = 0;
+    }
+
+    create(){
+        scoreText.destroy();
+        this.overlay = this.ctx.add.rectangle(GAMEWIDTH / 2, GAMEHEIGHT / 2, GAMEWIDTH, GAMEHEIGHT, 0x000000);
+        this.titletext = this.ctx.add.text(GAMEWIDTH / 2, GAMEHEIGHT / 3 - 50, "Game over", {
+            font: 8 * FONTSCALE + "em " + FONT,
+            fill: "#ffffff",
+            align: "center",
+            stroke: "#000000", 
+            strokeThickness: 5
+        });
+        this.scoretext = this.ctx.add.text(GAMEWIDTH / 2, GAMEHEIGHT / 3 + 50 * FONTSCALE, "You scored " + score + (score === 1 ? " point" : " points"), {
+            font: 5.5 * FONTSCALE + "em " + FONT,
+            fill: "#ffffff",
+            align: "center",
+            stroke: "#000000", 
+            strokeThickness: 5
+        });
+        this.overlay.setAlpha(this.overlayAlpha);
+        this.titletext.setOrigin(0.5, 0.5);
+        this.scoretext.setOrigin(0.5, 0.5);
+
+        this.playAgainButton = this.createButton("I can do better", GAMEWIDTH / 2, GAMEHEIGHT / 3 + 150 * FONTSCALE, 250 * FONTSCALE, 80 * FONTSCALE, this.handlePlayAgain);
+        this.formButton = this.createButton("Please just take me to the annuform", GAMEWIDTH / 2, GAMEHEIGHT / 3 + 250 * FONTSCALE, 520 * FONTSCALE, 80 * FONTSCALE, this.handleForm);
+    }
+
+    handlePlayAgain(){
+        window.location.reload();
+    }
+    
+    handleForm(){}
+
+    createButton(text, x, y, width, height, callback){
+        x = x - width / 2;
+        let container = this.ctx.add.container(x, y);
+        
+        let belowButton = this.ctx.add.graphics();
+        container.add(belowButton);
+        // belowButton.fillStyle(0x123456, 1);
+        // belowButton.fillRoundedRect(0, 0, width, height, 24);
+        // add white border
+        belowButton.lineStyle(1, 0xffffff, 1);
+        belowButton.strokeRoundedRect(0, 0, width, height, 24);
+
+        let button = this.ctx.add.graphics();
+        container.add(button);
+        button.fillStyle(0x5F021F, 1);
+        button.fillRoundedRect(0, 0, width, height, 24);
+        // add white border
+        button.lineStyle(1, 0xffffff, 1);
+        button.strokeRoundedRect(0, 0, width, height, 24);
+        // Add text in button
+        let btntext = this.ctx.add.text(width / 2, height / 2, text, {
+            font: 3 * FONTSCALE + "em "+ FONT,
+            fill: "#ffffff",
+            align: "center",
+            stroke: "#000000", 
+            strokeThickness: 2
+        });
+        btntext.setOrigin(0.5, 0.5);
+        container.add(btntext);
+        container.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains, {cursor: "pointer"});
+        container.on("pointerdown", callback);
+        container.on("pointerover", function(){
+            button.setAlpha(0);
+            document.body.style.cursor = 'pointer';
+        });
+        container.on("pointerout", function(){
+            button.setAlpha(1);
+            document.body.style.cursor = 'default';
+        });
+        return container;
+    }
+
+    update(){
+        if (this.overlayAlpha < 0.6){
+            this.overlayAlpha += 0.1;
+            this.overlay.setAlpha(this.overlayAlpha);
+        }
+    }
+
+    handleKeydown(){}
+}
+
 let config = {
     type: Phaser.AUTO,
     width: GAMEWIDTH,
@@ -145,28 +280,42 @@ function preload () {
 
 function create () {
     bg = this.add.tileSprite(GAMEWIDTH / 2, GAMEHEIGHT - 75, GAMEWIDTH, 150, "bg1");
-    owl = this.add.sprite(owlXPos, GAMEHEIGHT / 2, "owl");
+    owl = this.add.sprite(owlXPos, GAMEHEIGHT / 3.2, "owl");
     owl.setScale(OWLSCALE);
     owl.angle = 20;
-    this.input.keyboard.on("keydown", owlFlap, this);
-    this.input.on('pointerdown', owlFlap, this);
-    
-    let fontSize = FONTSCALE * 100;
-    let textStyle = {font: fontSize + "px " + FONT, fill: "#ffffff", align: "center", stroke: "#000000", strokeThickness: 5};
-    scoreText = this.add.text(GAMEWIDTH / 2, 20, score, textStyle);
-    scoreText.setDepth(1);
+    this.input.keyboard.on("keydown", handleKeydown, this);
+    this.input.on('pointerdown', handleKeydown, this);
 
+    endUI = new EndUI(this);
+    startUI = new StartUI(this);
+    startUI.create();
+    curUI = startUI;
+}
+
+function handleKeydown(){
+    if (GAMESTATE === "PLAY"){
+        owlFlap();
+    } else if (GAMESTATE === "UI"){
+        curUI.handleKeydown();
+    }
 }
 
 function update() {
-    bg.tilePositionX += SCROLLSPEED;
-    SCROLLSPEED += Math.min(ACCERELATIONCAP, SCROLLSPEED * ACCERELATION);
-    owl.y -= owlUpwardMotion;
-    owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
-    scoreText.setText(score);
+    if (!GAMEENDED){
+        bg.tilePositionX += SCROLLSPEED; // keep the background moving!
+    }
+    if (GAMESTATE === "UI"){
+        curUI.update();
+    } else if (GAMESTATE == "PLAY"){
+        SCROLLSPEED += Math.min(ACCERELATIONCAP, SCROLLSPEED * ACCERELATION);
+        owl.y -= owlUpwardMotion;
+        owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
+        scoreText.setText(score);
 
-    checkCollisionsUpdatePipes();
-    managePiping(this);
+        checkCollisionsUpdatePipes();
+        managePiping(this);
+    }
+    
 }
 
 function checkCollisionsUpdatePipes(){
@@ -194,13 +343,13 @@ function managePiping(ctx) {
         let maxGapSize = Math.floor(owlHalfHeight * 2 * 7);
         let minGapBookCount = Math.floor(minGapSize / CALCULATEDBOOKHEIGHT) + 1;
         let maxGapBookCount = Math.floor(maxGapSize / CALCULATEDBOOKHEIGHT) + 1;
-        let maxVariance = maxBookCount / 4;
+        let maxVariance = maxBookCount / 3.2;
 
         let bookTopCount;
         if (lastPipeTopBookCount) {
             bookTopCount = Phaser.Math.Between(Math.max(2, lastPipeTopBookCount - maxVariance), Math.min(maxBookCount / 2, lastPipeTopBookCount + maxVariance));
         } else {
-            bookTopCount = Phaser.Math.Between(2, maxBookCount / 1.6);
+            bookTopCount = Phaser.Math.Between(2, maxBookCount / 2);
             lastPipeTopBookCount = bookTopCount;
         }
 
@@ -221,7 +370,10 @@ function check_ground_hit(){
 }
 
 function gameOver(){
-    alert("Game Over");
+    GAMESTATE = "UI";
+    GAMEENDED = true;
+    curUI = endUI;
+    curUI.create();
 }
 
 </script>

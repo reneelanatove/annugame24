@@ -201,7 +201,9 @@ class EndUI {
         window.location.reload();
     }
     
-    handleForm(){}
+    handleForm(){
+        window.open("https://forms.gle/StgHUfHmLc6Eyxd9A", "_blank");
+    }
 
     createButton(text, x, y, width, height, callback){
         x = x - width / 2;
@@ -272,6 +274,8 @@ var game = new Phaser.Game(config);
 function preload () {
     this.load.image("bg1", "bg.png");
     this.load.image("owl", "owl.png");
+    registerBook(this, "b59.png");
+    registerBook(this, "b60.png");
     registerBook(this, "b61.png");
     registerBook(this, "b62.png");
     registerBook(this, "b63.png");
@@ -282,7 +286,7 @@ function create () {
     bg = this.add.tileSprite(GAMEWIDTH / 2, GAMEHEIGHT - 75, GAMEWIDTH, 150, "bg1");
     owl = this.add.sprite(owlXPos, GAMEHEIGHT / 3.2, "owl");
     owl.setScale(OWLSCALE);
-    owl.angle = 20;
+    owl.angle = 12;
     this.input.keyboard.on("keydown", handleKeydown, this);
     this.input.on('pointerdown', handleKeydown, this);
 
@@ -311,6 +315,7 @@ function update() {
         owl.y -= owlUpwardMotion;
         owlUpwardMotion -= Math.max(owlDownwardAcc, owlUpwardMotion * owlDownwardAcc);
         scoreText.setText(score);
+        owl.angle = 12 + score;
 
         checkCollisionsUpdatePipes();
         managePiping(this);

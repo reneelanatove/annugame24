@@ -325,6 +325,7 @@ function update() {
 
 function checkCollisionsUpdatePipes(){
     check_ground_hit();
+    check_fully_in_air();
     let curPipe = firstPipe;
     while (curPipe){
         curPipe.checkCollision();
@@ -370,6 +371,12 @@ function managePiping(ctx) {
 
 function check_ground_hit(){
     if(owl.y > GAMEHEIGHT){
+        gameOver();
+    }
+}
+
+function check_fully_in_air(){
+    if(owl.y + owlHalfHeight + 10 < 0){
         gameOver();
     }
 }

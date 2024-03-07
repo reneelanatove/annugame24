@@ -40,6 +40,7 @@ var GAMEENDED = false;
 let curUI;
 let startUI;
 let endUI;
+let dt = 1;
 
 
 function registerBook(ctx, bookFileName){
@@ -86,11 +87,11 @@ class Pipe {
     }
 
     update(){
-        this.x -= SCROLLSPEED;
+        this.x -= SCROLLSPEED * dt;
         if (showPipesDebug) this.debugRectangle.x = this.x;
         // Moves books to the left
         this.books.forEach(book => {
-            book.x -= SCROLLSPEED;
+            book.x -= SCROLLSPEED * dt;
         });
 
         // Check if pipe is past owl
@@ -305,9 +306,10 @@ function handleKeydown(){
     }
 }
 
-function update() {
+function update(time, delta) {
+    dt = delta / 16.5;
     if (!GAMEENDED){
-        bg.tilePositionX += SCROLLSPEED; // keep the background moving!
+        bg.tilePositionX += SCROLLSPEED * dt; // keep the background moving!
     }
     if (GAMESTATE === "UI"){
         curUI.update();
@@ -341,7 +343,7 @@ function owlFlap() {
 
 function managePiping(ctx) {
     if (lastPipeSpawn > 0){
-        lastPipeSpawn -= SCROLLSPEED;
+        lastPipeSpawn -= SCROLLSPEED * dt;
     } else {
         // Spawn new pipe
         lastPipeSpawn = pipeSpawnDelay;
@@ -392,3 +394,4 @@ function gameOver(){
 </script>
 </body>
 </html>
+
